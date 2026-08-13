@@ -1,0 +1,7 @@
+interface:
+  display_name: "Media Pitch Generator"
+  short_description: "Draft and validate PR pitch letters"
+  default_prompt: "Use $media-pitch-generator to draft a concise journalist pitch."
+
+policy:
+  allow_implicit_invocation: false

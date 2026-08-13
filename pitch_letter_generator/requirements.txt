@@ -1,0 +1,2 @@
+# Media Pitch Generator — zero runtime dependencies.
+# Standard library only (Python 3.8+). No `pip install` required.
