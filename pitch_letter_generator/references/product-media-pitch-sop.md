@@ -22,6 +22,21 @@ Extract these facts from the user's materials before drafting:
 
 Do not invent missing facts. Ask for them or use bracketed placeholders.
 
+### Story test (run before angle selection)
+
+A hook is weak unless it clears at least three of these four:
+
+- Change/timeliness: something is new, shifting, or expiring.
+- Proof: a number, sample, study, named customer, or verifiable fact.
+- Stakes: tension, cost, risk, or a winner/loser.
+- Audience impact: a specific group in the target readership is affected, and
+  you can say how.
+
+A weak hook goes back to the user with 2-3 concrete strengtheners (new data
+point, customer proof, trend peg, sharper audience) and the choice to
+strengthen first or proceed anyway — per the skill's newsworthiness verdict.
+Never draft past a weak hook silently.
+
 ## 2. Feature -> Pain Point -> Value
 
 Convert product specs into a journalist-facing angle:
@@ -79,6 +94,11 @@ Choose one primary angle from the reporter's point of view:
 For batch outreach, create separate versions by audience group instead of using
 one generic pitch for everyone.
 
+Regenerate/variant semantics: a request for "another version" means a
+different angle from this menu — with fresh questions to the user for whatever
+input the new angle needs — not a re-wording of the same thesis. Reserve
+wording-only re-rolls for explicit requests.
+
 ## 6. Media List Logic
 
 Prioritize journalists in this order:
@@ -98,15 +118,23 @@ why they fit, and the best pitch angle.
 
 Run this checklist before final delivery:
 
-- The subject is declarative and headline-like.
+- The subject is declarative, headline-like, and within ~9 words / 60
+  characters.
 - The first sentence gives the hook immediately.
-- The pitch has 3-4 short paragraphs.
-- The reader pain point and value are clear.
+- The pitch has 3-4 short paragraphs (unless the user opted into a licensed
+  deviation such as ultra-short or data-first).
+- The reader pain point and value are clear, and the why-it-matters paragraph
+  names the affected reader community specifically.
 - Technical details are translated into plain-language benefits.
 - Only 3-4 strongest proof points are included.
 - The source/spokesperson is credible and named when provided.
 - The CTA asks for one low-friction next step.
-- Reporter personalization uses one real recent piece or a bracketed placeholder.
+- Reporter personalization is real or absent: one real recent piece with its
+  date, a bracketed placeholder, or no personalization at all — never simulated
+  familiarity, and no flattery openers ("I loved your article", "big fan",
+  "came across your piece").
+- No AI-tell vocabulary: "excited to share", "revolutionary", "game-changing",
+  "cutting-edge", "delve", "seamlessly", "in today's fast-paced world".
 - No bullets, inline links, attachment mentions, unsupported superlatives, or
   invented claims.
 - The pitch is under 150 words unless the user explicitly asks for a longer

@@ -12,8 +12,12 @@ Follows PR Desk's proven Pitch Drafter logic:
             credentials -> conversational ask.
   TONE    : conversational, confident, senior-PR-pro; never salesy, never a
             robot; respects the reporter's time.
-  PERSONALIZATION: when a reporter is named, reference ONE specific recent piece
-            of theirs and offer a complementary angle.
+  PERSONALIZATION: real or absent, never simulated — when a reporter is named,
+            reference ONE specific recent piece of theirs WITH ITS DATE and
+            offer a complementary angle; with no real coverage in hand, use a
+            bracketed placeholder or omit personalization entirely.
+  REGENERATE: a variant is a strategy change — the Nth angle lens from the SOP
+            menu (ANGLE_MENU) — not a re-wording of the same thesis.
 
 This module is intentionally FREE of any LLM call, HTTP server, or API key. It is
 the OFFLINE half of a portable skill: it emits a deterministic structure skeleton
@@ -54,21 +58,42 @@ STRUCTURE (follow exactly):
 2. A short greeting (use the reporter's first name when known).
 3. Three to four short paragraphs:
    - Paragraph 1: the thesis / clear news hook in the FIRST sentence.
-   - Paragraph 2: why it matters (timeliness / the "so what").
+   - Paragraph 2: why it matters — NAME who in the outlet's readership is \
+affected and how. Generic timeliness prose ("in a fast-moving market") is a \
+failure; relevance means impact on the audience's community.
    - Paragraph 3: introduce the source — client + spokesperson + their credible \
 title — and what they can offer a reporter.
    - Paragraph 4 (optional): a conversational, low-friction ask (e.g. a short \
 briefing or a bylined idea).
-4. If a TARGET REPORTER is given and you have their recent coverage, reference ONE \
-specific recent piece of theirs and offer a COMPLEMENTARY angle (not generic \
-"I saw your article" filler). If you lack real coverage, insert a bracketed \
-placeholder rather than inventing a title/URL.
+4. Personalization is REAL OR ABSENT — never simulated. If a TARGET REPORTER is \
+given and you have their recent coverage, reference ONE specific recent piece \
+of theirs WITH ITS DATE and offer a COMPLEMENTARY angle that extends their \
+storyline (not generic "I saw your article" filler). If you lack real coverage, \
+insert a bracketed placeholder rather than inventing a title/URL/date. If no \
+genuinely complementary connection exists, omit personalization entirely — an \
+accurate on-beat pitch with no flattery beats counterfeit familiarity.
 
-HARD RULES: under 150 words; NO bullet points; NO mention of attachments; NO \
-inline hyperlinks in the body.
+HARD RULES: under 150 words; subject at most ~9 words; NO bullet points; NO \
+mention of attachments; NO inline hyperlinks in the body; NO flattery openers \
+("I loved your article", "big fan", "I came across your piece", "I hope this \
+finds you well"); NO AI-tell vocabulary ("excited to share", "revolutionary", \
+"game-changing", "cutting-edge", "delve", "seamlessly", "in today's fast-paced \
+world").
 Base every claim on the client context and the pasted MATERIALS. Never invent \
 facts, stats, or quotes not present in the inputs.\
 """
+
+# SOP angle menu — a regenerate/variant is a *different angle from this menu*
+# (a strategy change), never a re-wording of the same thesis.
+ANGLE_MENU = [
+    "product launch / new availability",
+    "industry or consumer pain point",
+    "use-case / scenario",
+    "technical or clinical differentiation",
+    "market-trend complement",
+    "sample / review invitation",
+    "expert or executive interview",
+]
 
 
 # --------------------------------------------------------------------------- #
@@ -136,7 +161,8 @@ def build_skeleton(inp: PitchInput) -> PitchOutput:
             f"{hook} would land — [reference ONE specific recent piece and offer a "
             f"complementary angle]."
         )
-    variant_tag = f"  [variant {inp.variant}]" if inp.variant else ""
+    lens = ANGLE_MENU[(inp.variant - 1) % len(ANGLE_MENU)] if inp.variant > 0 else ""
+    variant_tag = f"  [variant {inp.variant} — angle lens: {lens}]" if lens else ""
     body = (
         f"Subject: {subject}\n\n"
         + greeting
@@ -152,8 +178,13 @@ def build_skeleton(inp: PitchInput) -> PitchOutput:
         notes += " Materials detected — use them as the fact base."
     else:
         notes += " No materials — ask the user to paste background material."
+    if lens:
+        notes += (f" Variant lens = '{lens}': rebuild P1/P2 around this angle "
+                  "(ask the user for the input it needs) — a variant is a "
+                  "strategy change, not a re-wording.")
     return PitchOutput(
-        angle=hook, subject=subject, body=body,
+        angle=hook if not lens else f"{hook} (lens: {lens})",
+        subject=subject, body=body,
         word_count=len(re.findall(r"\S+", body)),
         backend="skeleton", validation_issues=issues, note=notes,
     )
@@ -165,8 +196,39 @@ def generate_pitch(inp: PitchInput) -> PitchOutput:
 
 
 # --------------------------------------------------------------------------- #
-#  Validator — checks a draft against PR Desk's hard rules.                    #
+#  Validator — checks a draft against PR Desk's hard rules plus the            #
+#  journalist-facing spam signals (flattery openers, AI-tell vocabulary,       #
+#  undated coverage references, overlong subjects).                            #
 # --------------------------------------------------------------------------- #
+_FLATTERY_OPENERS = [
+    r"\bi hope this (?:email |message )?finds you well\b",
+    r"\bi(?:'m| am) a big fan\b",
+    r"\bbig fan of your\b",
+    r"\bi (?:loved|really enjoyed|enjoyed) your (?:article|piece|story|work)\b",
+    r"\bi (?:came|stumbled) across your (?:article|piece|profile|work)\b",
+    r"\bi(?:'ve| have) been following your (?:work|coverage|writing)\b",
+]
+_AI_TELLS = [
+    r"\bexcited to (?:share|announce)\b",
+    r"\brevolutionary\b|\brevolutioni[sz]e\w*\b",
+    r"\bgame[- ]chang\w+\b",
+    r"\bcutting[- ]edge\b",
+    r"\bdelv(?:e|es|ed|ing)\b",
+    r"\bseamless(?:ly)?\b",
+    r"\bin today'?s fast[- ]paced world\b",
+]
+# A coverage reference must carry a date (or a [bracketed] placeholder) so a
+# fabricated "your recent piece" can never pass silently.
+_COVERAGE_REF = re.compile(
+    r"\byour (?:recent |latest )?(?:piece|article|story|coverage|reporting|"
+    r"feature|interview)\b", re.I)
+_DATE_TOKEN = re.compile(
+    r"\b(?:jan(?:\.|uary)?|feb(?:\.|ruary)?|march|apr(?:\.|il)?|may\s+\d|june|"
+    r"july|aug(?:\.|ust)?|sept?(?:\.|ember)?|oct(?:\.|ober)?|nov(?:\.|ember)?|"
+    r"dec(?:\.|ember)?|20\d\d|last\s+(?:week|month|year)|this\s+(?:week|month)|"
+    r"yesterday|earlier\s+this)\b", re.I)
+
+
 def validate_pitch(text: str, max_words: int = 150) -> List[str]:
     issues: List[str] = []
     if not text or not text.strip():
@@ -185,6 +247,26 @@ def validate_pitch(text: str, max_words: int = 150) -> List[str]:
     if re.search(r"\b(attached|attachment|enclosed)\b", text, re.I):
         issues.append("mentions an attachment (remove it)")
 
+    for pat in _FLATTERY_OPENERS:
+        m = re.search(pat, text, re.I)
+        if m:
+            issues.append(f'flattery opener "{m.group(0)}" (praise without '
+                          "substance reads as unread — cut it)")
+
+    for pat in _AI_TELLS:
+        m = re.search(pat, text, re.I)
+        if m:
+            issues.append(f'AI-tell phrase "{m.group(0)}" (rewrite in plain '
+                          "language — this vocabulary flags a machine draft)")
+
+    for line in text.splitlines():
+        if _COVERAGE_REF.search(line) and "[" not in line \
+                and not _DATE_TOKEN.search(line):
+            issues.append("coverage reference lacks a date (cite the piece's "
+                          "date, use a [bracketed placeholder], or omit "
+                          "personalization — never simulate familiarity)")
+            break
+
     subject_line = _detect_subject(text)
     if subject_line:
         s = subject_line.strip().rstrip()
@@ -193,6 +275,11 @@ def validate_pitch(text: str, max_words: int = 150) -> List[str]:
         if re.match(r"^(what|why|how|when|where|who|is|are|can|do|does|did|will|"
                     r"should|could|would|has|have|which)\b", s, re.I):
             issues.append("subject looks like a question (make it declarative)")
+        s_words = len(s.split())
+        if s_words > 9 or len(s) > 60:
+            issues.append(f"subject is {s_words} words / {len(s)} chars "
+                          "(keep it within ~9 words / 60 chars so it survives "
+                          "a mobile inbox)")
     else:
         issues.append("no subject line found (add a declarative headline subject)")
 
@@ -246,7 +333,9 @@ def _main() -> None:
                    help="pasted background material (repeatable)")
     p.add_argument("--tone", default="professional")
     p.add_argument("--max-words", type=int, default=150)
-    p.add_argument("--variant", type=int, default=0, help=">0 = different angle")
+    p.add_argument("--variant", type=int, default=0,
+                   help=">0 = the Nth SOP angle lens (a strategy change, "
+                        "not a re-wording)")
     p.add_argument("--validate", metavar="TEXT", help="validate a draft against PR Desk rules")
     p.add_argument("--json", action="store_true", help="emit raw JSON")
     args = p.parse_args()

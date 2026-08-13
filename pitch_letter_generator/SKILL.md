@@ -12,7 +12,10 @@ description: >
   proven structure (declarative headline subject -> greeting -> 3-4 short
   paragraphs: thesis / why-it-matters / source+credentials / conversational ask),
   senior-PR tone, reporter-aware personalization, fact-base discipline, and SOP
-  checklist gates. PORTABLE & LLM-AGNOSTIC: encodes the methodology plus a
+  checklist gates. Adds a newsworthiness verdict before drafting,
+  audience-impact framing, real-or-absent personalization (never simulated),
+  strategy-level angle regeneration, and an anti-AI-tell validator.
+  PORTABLE & LLM-AGNOSTIC: encodes the methodology plus a
   zero-dependency scaffold/validator. No HTTP server, hardcoded LLM, or API keys.
 ---
 
@@ -61,12 +64,33 @@ briefly restate the current assumption and ask the user to confirm or correct it
    test a sample, request images/media kit, or consider a byline?
 8. Is this Round 1, follow-up, Tier 2 broad outreach, niche/vertical outreach, or
    a new angle for a different reporter group?
+9. Optional: paste one to three past pitches or emails that sound like you, so
+   the draft can match your voice. Skip freely if none are handy.
 
 After asking the questions, wait for the user's answer before drafting unless
 the user explicitly says to proceed with assumptions. If the user asks to skip
 the questions, proceed with the supplied facts and clearly state the assumptions.
 If the fact base is weak, write bracketed placeholders for missing facts rather
 than inventing.
+
+## Newsworthiness verdict (after the questions, before any drafting)
+
+A generator that cannot say "not a story yet" only ever produces plausible
+pitches, never correct decisions. So once the question gate is answered, test
+the hook before writing a word. It is weak unless it clears at least three of:
+
+1. **Change/timeliness** — something is new, shifting, or expiring.
+2. **Proof** — a number, sample, study, named customer, or verifiable fact.
+3. **Stakes** — tension, cost, risk, or a winner/loser; someone should care.
+4. **Audience impact** — a specific group in the target outlet's readership is
+   affected, and you can say how.
+
+If the hook passes, state a one-line verdict and proceed. If it is weak, do
+NOT draft yet: say plainly which tests fail, offer 2-3 concrete strengtheners
+(a new data point, a customer proof, a trend peg, a sharper audience), and ask
+the user whether to (a) strengthen first or (b) proceed anyway with the
+strongest available angle. The user always decides — this is a verdict plus a
+question, never a silent refusal.
 
 ## Product pitch production SOP
 
@@ -111,34 +135,80 @@ For the full SOP and media-list logic, see
 2. A short greeting (use the reporter's first name when known).
 3. Three to four short paragraphs:
    - **P1**: the thesis / clear news hook in the **FIRST sentence**.
-   - **P2**: why it matters (timeliness / the "so what").
+   - **P2**: why it matters — and it must **name who in the outlet's readership
+     is affected and how**. Journalists judge relevance by impact on their
+     audience's community; generic timeliness prose ("in a fast-moving market")
+     fails review. This is the paragraph no data source writes for you — it is
+     the editorial judgment connecting the user's fact to the reader's life.
    - **P3**: introduce the source — client + spokesperson + credible title — and what they can offer a reporter.
    - **P4 (optional)**: a conversational, low-friction ask (15-min briefing, bylined idea).
-4. If a reporter is named, reference **ONE specific recent piece** of theirs and
-   offer a **COMPLEMENTARY** angle (not generic "I saw your article" filler).
-   - If you have web/search tools, fetch a real recent piece. If not, insert a
-     bracketed placeholder like `[reference a recent {outlet} piece on {topic}]`
-     for the human to fill — **do NOT fabricate** a title/URL.
+4. Personalization is **real or absent — never simulated**. If a reporter is
+   named:
+   - With web/search tools (or user-supplied links): reference **ONE specific
+     recent piece** of theirs *with its date*, and offer a **COMPLEMENTARY**
+     angle that extends their storyline (not generic "I saw your article"
+     filler). The complementary angle is the substance; the citation only
+     proves you read.
+   - Without real coverage in hand: insert a bracketed placeholder like
+     `[reference a recent {outlet} piece on {topic} + its date]` for the human
+     to fill — **do NOT fabricate** a title, URL, or date.
+   - If no genuinely complementary connection exists, **omit personalization
+     entirely**: an accurate on-beat pitch with no flattery beats counterfeit
+     familiarity. Never open with "I loved your article", "big fan", or
+     "I came across your piece".
 
 **TONE**: "sound like you, not a robot" — conversational, confident, concise,
 senior-PR-pro; respects the reporter's time; never salesy, never corporate fluff.
+If the user provided voice samples (question 9), match their cadence, diction,
+and sign-off — but hard rules always override style samples, and never reproduce
+a sample's bad habits (flattery openers, hype). What matters most is the
+negative: suppress AI-template voice. **Banned AI-tell vocabulary** everywhere:
+"excited to share", "revolutionary", "game-changing", "cutting-edge", "delve",
+"seamlessly", "in today's fast-paced world".
 
 **HARD RULES**: under 150 words; no bullet points; no attachment mentions; no
 inline hyperlinks in the body. Every claim comes from the inputs/materials.
 
-**REGENERATE**: if the user wants a different angle, change the hook/lead while
-keeping the same structure (the script's `--variant N` also tags the scaffold).
+**REGENERATE — change strategy, not wording**: re-rolling the same thesis with
+new phrasing only explores the letter's surface; a genuinely different pitch
+needs a different angle. When the user asks to regenerate, pick a **different
+angle from the SOP angle menu** (product launch, pain point, scenario/use case,
+technical differentiation, trend complement, sample/review invite, expert
+interview) and — true to this skill's question-driven workflow — ask the user
+for whatever input the new angle needs before drafting it. Reserve
+same-thesis re-phrasing for explicit wording-only requests. The script's
+`--variant N` tags the scaffold with the Nth angle lens from that menu.
+
+## Licensed formula deviations
+
+The structure above is the default scaffold, not a law. When every AI-drafted
+pitch converges on the same four-paragraph shape, the shape itself becomes the
+tell. Two deviations are licensed — offer them as options and let the user
+choose; never switch silently:
+
+- **Ultra-short**: two to three sentences total — hook + ask, nothing else.
+  Best for reporters the user already knows or hyper-competitive inboxes.
+- **Data-first**: lead with the single strongest number and what it means; one
+  supporting paragraph; ask.
+
+Non-negotiables that survive every deviation: fact-base discipline,
+real-or-absent personalization, declarative subject, no bullets, no body
+links, no attachment mentions. The word cap moves only when the user asks
+(`--max-words`).
 
 ## Required pre-send checklist
 
 Every final pitch must pass this checklist before delivery:
 
+- **Verdict given**: The newsworthiness verdict was delivered before drafting;
+  if the hook was weak, the user chose to strengthen or proceed.
 - **Fact base**: All claims come from user materials, cited source text, or a
   clearly stated inference. No invented stats, quotes, reporter articles, or
   superlatives.
 - **Hook**: First sentence states the clear news hook or pain-point/value angle.
 - **Audience fit**: The pitch explains why this matters to the target outlet's
-  readers, not only why the company cares.
+  readers, not only why the company cares — and P2 names the affected reader
+  community specifically.
 - **Feature -> value**: Technical specs are translated into practical reader
   value.
 - **Proof points**: Includes only the strongest 3-4 facts or benefits.
@@ -146,10 +216,17 @@ Every final pitch must pass this checklist before delivery:
   states what the source can explain.
 - **CTA**: Ends with one low-friction next step: story consideration, briefing,
   interview, sample/review, factsheet/media materials, or byline idea.
-- **Reporter personalization**: If a specific reporter is named, reference one
-  real recent piece or use a bracketed placeholder. Never fabricate coverage.
+- **Reporter personalization**: Real or absent — one real recent piece *with
+  its date*, a bracketed placeholder, or personalization omitted entirely.
+  Never fabricate coverage or simulate familiarity; no flattery openers
+  ("I loved your article", "big fan", "came across your piece").
+- **No AI-tells**: None of the banned vocabulary ("excited to share",
+  "revolutionary", "game-changing", "cutting-edge", "delve", "seamlessly",
+  "in today's fast-paced world"); subject stays within ~9 words / 60
+  characters so it survives a mobile inbox.
 - **PR Desk hard rules**: Declarative subject, short greeting, 3-4 short
-  paragraphs, under 150 words, no bullets, no body links, no attachment mention.
+  paragraphs, under 150 words, no bullets, no body links, no attachment mention
+  (unless the user opted into a licensed deviation).
 
 When presenting the final answer, include a compact checklist result if the user
 asked for SOP compliance or validation.
@@ -165,6 +242,8 @@ python3 {SKILL_DIR}/scripts/pitch.py \
   --material-text "Acme Q2: 47% faster restocking across 200 stores." \
   --variant 0
 # --material PATH  (repeatable) reads a file as background material
+# --variant N      (N>0) tags the scaffold with the Nth SOP angle lens —
+#                  rebuild P1/P2 around that angle, don't just re-word
 # --json           emit raw JSON
 ```
 Take the printed skeleton, then rewrite the prose with your own LLM voice
@@ -174,7 +253,9 @@ final email.
 ### B. Validate a draft against PR Desk's hard rules
 ```bash
 python3 {SKILL_DIR}/scripts/pitch.py --validate "$(cat my_pitch.txt)"
-# prints: declarative subject? word count (must be <150), bullets? links? attachments?
+# checks: declarative subject + subject length, word count (<150), bullets,
+# links, attachment mentions, flattery openers, AI-tell vocabulary, and
+# coverage references that lack a date or placeholder
 ```
 
 ### C. Library

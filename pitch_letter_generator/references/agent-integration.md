@@ -10,14 +10,17 @@ supplies the model. This file explains how to wire it up in the common hosts.
 - `scripts/pitch.py` — a **zero-dependency** (stdlib-only) Python helper that:
   - `build_skeleton(inp)` → emits a deterministic structure skeleton with
     `[bracketed]` placeholders for the agent to fill.
-  - `validate_pitch(text)` → checks a draft against PR Desk's hard rules
-    (declarative subject, <150 words, no bullets / links / attachment mentions).
+  - `validate_pitch(text)` → checks a draft against PR Desk's hard rules plus
+    journalist-facing spam signals (declarative subject within ~9 words,
+    <150 words, no bullets / links / attachment mentions, no flattery openers
+    or AI-tell vocabulary, coverage references dated or placeholdered).
   - `PRDESK_SPEC` → the methodology string, ready to load into the agent's own prompt.
 
 ## Codex / Claude Code / custom CLI agent
 1. Place this skill folder where your agent reads skills.
-2. When the user asks for a pitch, follow `SKILL.md`. Gather inputs (ask for the
-   background materials if missing).
+2. When the user asks for a pitch, follow `SKILL.md`. Ask the question gate,
+   gather inputs (ask for the background materials if missing), and deliver the
+   newsworthiness verdict before drafting.
 3. Optionally run the scaffold:
    `python3 {SKILL_DIR}/scripts/pitch.py --topic "..." --client Acme --material-text "..."`
 4. Write the email with your own model, following the STRUCTURE / TONE / RULES.
