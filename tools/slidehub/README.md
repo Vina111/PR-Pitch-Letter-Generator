@@ -64,7 +64,7 @@ python3 -m slidehub reimport --library build/library --deck returned.pptx
 | `pptx_compat.py` | 绕开 python-pptx 的 `add_slide` 重名 bug |
 | `simulate.py` | 模拟客户会后的真实编辑，用于验证回传 |
 
-## 两个值得记住的坑
+## 三个值得记住的坑
 
 **1. `python-pptx` 的 `add_slide` 会生成重名 part**
 
@@ -72,7 +72,16 @@ python3 -m slidehub reimport --library build/library --deck returned.pptx
 删一页再加一页 → `slide10.xml` 撞名 → PowerPoint 报文件损坏。
 「删了再加」正是这个产品最高频的操作，所以建 slide 一律走 `pptx_compat.add_slide`。
 
-**2. 灰度感知哈希看不见颜色变化**
+**2. 母版按页重复克隆**
+
+每页是独立打开的文件，所以同一份源 deck 的母版会被克隆 N 次 —— 10 页产出 11 套母版。
+`PartCloner` 因此按 part 的**整个可达子图**哈希去重（`_content_key`），而不是按对象身份。
+
+只按 part 自身字节去重是不够的：三份样本 deck 的 `slideMaster1.xml` 完全相同，
+只有挂在下面的 theme 不同，按字节去重会把不同品牌色的母版合并掉。
+这个错误是被下面第 3 条的颜色检测抓出来的。
+
+**3. 灰度感知哈希看不见颜色变化**
 
 早期试过把页重挂到统一母版。图表的柱子从橙变青（图表颜色不在 slide 里，在独立的
 chart part 中靠目标主题推导），而 dhash 给出的距离只有 2 —— **判定通过**。

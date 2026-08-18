@@ -16,6 +16,7 @@ This is the layer everything else in the spike stands on. Two distinct jobs:
 """
 from __future__ import annotations
 
+import hashlib
 import re
 
 from pptx.opc.constants import RELATIONSHIP_TARGET_MODE as RTM
@@ -37,11 +38,19 @@ def _partname_tmpl(partname) -> str:
 
 class PartCloner:
     """Clones parts into `dst_package`, memoised so a part shared by several
-    slides is copied once and a layout<->master reference cycle terminates."""
+    slides is copied once and a layout<->master reference cycle terminates.
+
+    Memoised on *content*, not object identity. Every page is opened as its own
+    Presentation, so ten pages out of one deck present ten distinct Python
+    objects for what is byte-for-byte the same master. Keying on identity clones
+    it ten times: a 60-page deck would ship 60 near-identical masters, bloating
+    the file and turning PowerPoint's slide-master view into a wall of
+    duplicates.
+    """
 
     def __init__(self, dst_package):
         self.pkg = dst_package
-        self._cache: dict[int, Part] = {}
+        self._cache: dict[str, Part] = {}
         self.cloned_count = 0
         # Package.next_partname only sees parts already reachable from the
         # package root, and a clone is not reachable until something relates to
@@ -60,8 +69,55 @@ class PartCloner:
                 return PackURI(candidate)
             n += 1
 
+    @staticmethod
+    def _reachable(part) -> dict:
+        seen, stack = {}, [part]
+        while stack:
+            current = stack.pop()
+            if id(current) in seen:
+                continue
+            seen[id(current)] = current
+            for rel in current.rels.values():
+                if not rel.is_external:
+                    stack.append(rel.target_part)
+        return seen
+
+    @classmethod
+    def _content_key(cls, part, rounds: int = 4) -> str:
+        """Hash the whole subgraph reachable from `part`, not just its own bytes.
+
+        Hashing bytes alone is not enough, and the failure is subtle: two decks
+        built from one template have byte-identical slide masters and differ only
+        in the theme part hanging off them. Merge on the master's own hash and
+        every page silently repaints in the other deck's palette.
+
+        So each node's hash is refined against its neighbours' hashes for a few
+        rounds. Cycles (layout <-> master) are handled naturally, since the
+        refinement iterates rather than recurses. Four rounds comfortably covers
+        the deepest chain that matters here: slide -> layout -> master -> theme.
+        """
+        nodes = cls._reachable(part)
+        keys = {
+            pid: hashlib.sha256(
+                ("%s|" % node.content_type).encode("utf-8") + (node.blob or b"")
+            ).hexdigest()
+            for pid, node in nodes.items()
+        }
+        for _ in range(rounds):
+            refined = {}
+            for pid, node in nodes.items():
+                sig = [keys[pid]]
+                for rel in sorted(node.rels.values(), key=lambda r: r.rId):
+                    target = (rel.target_ref if rel.is_external
+                              else keys[id(rel.target_part)])
+                    sig.append("%s|%s|%s|%s" % (
+                        "E" if rel.is_external else "I", rel.rId, rel.reltype, target))
+                refined[pid] = hashlib.sha256("\x00".join(sig).encode("utf-8")).hexdigest()
+            keys = refined
+        return keys[id(part)]
+
     def clone(self, src_part) -> Part:
-        key = id(src_part)
+        key = self._content_key(src_part)
         if key in self._cache:
             return self._cache[key]
 
