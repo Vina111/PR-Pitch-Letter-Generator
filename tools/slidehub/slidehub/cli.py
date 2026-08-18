@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 from pptx import Presentation
@@ -178,6 +179,21 @@ def cmd_compose(args) -> int:
     refs = [(by_doc[by_uid[u]["doc"]], by_uid[u]["index"]) for u in uids]
     written = pdfdoc.compose(refs, Path(args.out),
                              title=args.title or Path(args.out).stem)
+
+    # "最后一次使用" only means anything if composing writes it back. Recording
+    # it here is also what makes the reverse question answerable later: which
+    # pages actually go out to clients, and which have never left the library.
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    for uid in set(uids):
+        by_uid[uid]["last_used"] = stamp
+        by_uid[uid]["use_count"] = by_uid[uid].get("use_count", 0) + 1
+    index.setdefault("exports", []).append({
+        "at": stamp, "out": str(args.out),
+        "title": args.title or Path(args.out).stem, "pages": uids,
+    })
+    (Path(args.library) / "index.json").write_text(
+        json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
+
     print("composed %d pages -> %s" % (written, args.out))
     for n, uid in enumerate(uids, start=1):
         print("  %2d. %-6s %s" % (n, uid, by_uid[uid]["title"][:56]))
