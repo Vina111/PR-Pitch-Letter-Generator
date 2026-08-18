@@ -12,12 +12,13 @@ plan depends on the answer, so it gets measured before any UI is built.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from pptx import Presentation
 
-from . import library, manifest, marker, reimport, simulate, verify
+from . import catalog, library, manifest, marker, pdfdoc, reimport, simulate, verify
 from .assemble import assemble
 from .fingerprint import COLOR_WARN, FIDELITY_WARN
 
@@ -98,6 +99,89 @@ def cmd_roundtrip(args) -> int:
             print("  page %2d  <no marker — would fall back to fingerprint match>" % i)
     print("\n  %d/%d pages identified" % (found, len(prs.slides)))
     return 0 if found == len(prs.slides) else 1
+
+
+def _load_catalog(path):
+    return json.loads((Path(path) / "index.json").read_text(encoding="utf-8"))
+
+
+def cmd_catalog(args) -> int:
+    print("building catalogue from %d source(s)" % len(args.sources))
+    index = catalog.build([Path(s) for s in args.sources], Path(args.out),
+                          thumb_width=args.thumb_width)
+    multi = [m for m in index["modules"] if m["version_count"] > 1]
+    flagged = [p for p in index["pages"] if p["review"]["status"] != "pending"]
+    weak = [p for p in index["pages"] if len(p["review"]["weak_fields"]) >= 3]
+    _rule("catalogue")
+    print("  %d pages  ->  %d groups  ->  %d modules" %
+          (len(index["pages"]), len(index["groups"]), len(index["modules"])))
+    print("  %d modules carry more than one version (the same case in several decks)"
+          % len(multi))
+    print("\n  review queue:")
+    print("    %2d pages flagged as attached to the wrong case" % len(flagged))
+    print("    %2d pages where three or more tag fields are low-confidence" % len(weak))
+    return 0
+
+
+def _matches(page, args, terms) -> bool:
+    tags = page["tags"]
+    facets = (("year", [tags["year"]]), ("region", tags["regions"]),
+              ("industry", tags["industries"]), ("service", tags["services"]),
+              ("event", tags["events"]), ("client", tags["clients"]),
+              ("type", [tags["page_type"]]))
+    for name, values in facets:
+        wanted = getattr(args, name, None)
+        if wanted and not any(wanted in (v or "") for v in values):
+            return False
+    if terms:
+        blob = "%s %s %s" % (page["title"], page["text"], " ".join(tags["clients"]))
+        if not all(t.lower() in blob.lower() for t in terms):
+            return False
+    return True
+
+
+def cmd_search(args) -> int:
+    index = _load_catalog(args.library)
+    hits = [p for p in index["pages"] if _matches(p, args, args.query)]
+    print("%d / %d pages match" % (len(hits), len(index["pages"])))
+    for page in hits[:args.limit]:
+        tags = page["tags"]
+        print("  %-6s %-38s %-5s %-8s %-14s %s"
+              % (page["uid"], page["title"][:38], tags["year"] or "—",
+                 "/".join(tags["regions"][:1]) or "—",
+                 "/".join(tags["industries"][:1]) or "—",
+                 "/".join(tags["clients"][:2]) or "—"))
+    if len(hits) > args.limit:
+        print("  ... %d more" % (len(hits) - args.limit))
+    return 0
+
+
+def cmd_compose(args) -> int:
+    index = _load_catalog(args.library)
+    by_uid = {p["uid"]: p for p in index["pages"]}
+    by_doc = {d["id"]: d["file"] for d in index["docs"]}
+    groups = {g["group_id"]: g for g in index["groups"]}
+    modules = {m["module_id"]: m for m in index["modules"]}
+
+    uids: list[str] = []
+    for token in (t.strip() for t in args.pages.split(",") if t.strip()):
+        if token in modules:
+            uids.extend(groups[modules[token]["default_version"]]["members"])
+        elif token in groups:
+            uids.extend(groups[token]["members"])
+        elif token in by_uid:
+            uids.append(token)
+        else:
+            print("unknown page / group / module: %s" % token, file=sys.stderr)
+            return 2
+
+    refs = [(by_doc[by_uid[u]["doc"]], by_uid[u]["index"]) for u in uids]
+    written = pdfdoc.compose(refs, Path(args.out),
+                             title=args.title or Path(args.out).stem)
+    print("composed %d pages -> %s" % (written, args.out))
+    for n, uid in enumerate(uids, start=1):
+        print("  %2d. %-6s %s" % (n, uid, by_uid[uid]["title"][:56]))
+    return 0
 
 
 def _print_verdicts(verdicts) -> dict:
@@ -257,6 +341,28 @@ def main(argv=None) -> int:
     p.add_argument("--work", default="build/reimport")
     p.add_argument("--dpi", type=int, default=110)
     p.set_defaults(func=cmd_reimport)
+
+    p = sub.add_parser("catalog", help="build the searchable PDF catalogue")
+    p.add_argument("sources", nargs="+", help="source PDF files")
+    p.add_argument("--out", default="build/lib")
+    p.add_argument("--thumb-width", type=int, default=480)
+    p.set_defaults(func=cmd_catalog)
+
+    p = sub.add_parser("search", help="search the catalogue")
+    p.add_argument("query", nargs="*", default=[])
+    p.add_argument("--library", default="build/lib")
+    for facet in ("year", "region", "industry", "service", "event", "client", "type"):
+        p.add_argument("--%s" % facet, default=None)
+    p.add_argument("--limit", type=int, default=30)
+    p.set_defaults(func=cmd_search)
+
+    p = sub.add_parser("compose", help="build a new PDF from catalogue pages")
+    p.add_argument("--library", default="build/lib")
+    p.add_argument("--pages", required=True,
+                   help="comma-separated uids or module ids, e.g. A:6,B:25,m046")
+    p.add_argument("--out", default="build/composed.pdf")
+    p.add_argument("--title", default="")
+    p.set_defaults(func=cmd_compose)
 
     p = sub.add_parser("spike", help="run the full P0 feasibility check")
     p.add_argument("--decks", default=str(HERE / "samples" / "decks"))

@@ -1,3 +1,5 @@
 build/
 samples/decks/
 samples/_media/
+*.pptx
+*.pdf
